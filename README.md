@@ -101,17 +101,12 @@ cp .env.example .env
 # Edit .env with your configuration
 ```
 
-3. **Start the platform**
+3. **Run guided setup**
 ```bash
-make up
+bash scripts/setup.sh
 ```
 
-4. **Wait for services to be ready**
-```bash
-make wait-for-services
-```
-
-5. **Verify installation**
+4. **Verify installation**
 ```bash
 make check-services
 ```
@@ -122,6 +117,7 @@ make check-services
 |---------|-----|-------------|
 | API Gateway | http://localhost:8000 | Main REST API |
 | API Docs | http://localhost:8000/docs | Swagger/OpenAPI documentation |
+| Web Frontend | http://localhost:5173 | Browser client for submitting analysis jobs |
 | LLM Service | http://localhost:8001 | Model serving endpoint |
 | Knowledge Service | http://localhost:8002 | Graph/vector search |
 | Grafana | http://localhost:3000 | Metrics dashboards |
@@ -135,14 +131,31 @@ make check-services
 
 ```bash
 # Submit a repository for analysis
-curl -X POST http://localhost:8000/api/v1/repositories/analyze \
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "url": "https://github.com/example/repo",
-    "branch": "main",
-    "analysis_types": ["security", "performance", "quality"]
-  }'
+  -d '{"email":"demo@codesage.local","password":"password123"}' | jq -r .access_token)
+
+REPO_ID=$(curl -s -X POST http://localhost:8000/api/v1/repositories \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"url":"https://github.com/example/repo","branch":"main"}' | jq -r .id)
+
+curl -X POST http://localhost:8000/api/v1/repositories/${REPO_ID}/analyze \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"analysis_types": ["security", "performance", "quality"]}'
+```
+
+### Web Frontend
+
+The repo includes a minimal browser frontend in `clients/web` with a built-in login flow (`/api/v1/auth/login`) and repository analysis trigger.
+
+```bash
+# Run only the frontend (API must already be running)
+make up
+# or: docker compose up -d web
+
+# Open http://localhost:5173
 ```
 
 ### VSCode Extension
